@@ -1,0 +1,196 @@
+# Ora2Pg-Admin 高级配置示例
+# 适用于复杂的企业级Oracle到PostgreSQL迁移场景
+
+# 项目基本信息
+project:
+  name: "企业级迁移项目"
+  version: "2.0.0"
+  description: "大型Oracle数据库到PostgreSQL的完整迁移项目"
+  created: "2024-01-01T00:00:00Z"
+  updated: "2024-01-01T00:00:00Z"
+
+# Oracle 数据库配置
+oracle:
+  host: "oracle-prod.company.com"
+  port: 1521
+  sid: ""                      # 使用Service Name连接
+  service: "PRODDB"            # Service Name
+  username: "migration_user"   # 专用迁移用户
+  password: "${ORACLE_PASSWORD}"
+  schema: "PRODUCTION"         # 生产模式
+
+# PostgreSQL 数据库配置
+postgresql:
+  host: "postgres-cluster.company.com"
+  port: 5432
+  database: "production_db"
+  username: "migration_user"
+  password: "${PG_PASSWORD}"
+  schema: "production"
+
+# 迁移配置
+migration:
+  # 完整的对象类型迁移
+  types:
+    - "TABLE"        # 表结构
+    - "VIEW"         # 视图
+    - "SEQUENCE"     # 序列
+    - "INDEX"        # 索引
+    - "TRIGGER"      # 触发器
+    - "FUNCTION"     # 函数
+    - "PROCEDURE"    # 存储过程
+    - "PACKAGE"      # 包
+    - "TYPE"         # 自定义类型
+    - "GRANT"        # 权限
+    - "COPY"         # 数据复制
+
+  # 高性能参数
+  parallel_jobs: 8             # 高并行度（适合高性能服务器）
+  batch_size: 5000             # 大批处理大小
+  output_dir: "production_output"
+  log_level: "DEBUG"           # 详细日志用于问题排查
+
+# Oracle 客户端配置
+oracle_client:
+  home: "/opt/oracle/instantclient_19_8"  # 指定客户端路径
+  auto_detect: false           # 不使用自动检测
+
+# 高级配置选项
+advanced:
+  # 数据导出选项
+  data_export:
+    enabled: true
+    use_copy: true
+    commit_count: 50000        # 大批量提交
+    disable_triggers: true
+    disable_fkey: true
+
+  # 文件配置
+  file_options:
+    encoding: "UTF8"
+    compress: true             # 启用压缩节省空间
+    max_size: 2000             # 更大的文件大小限制
+
+  # 复杂过滤选项
+  filters:
+    # 只迁移特定的表
+    include_tables: "^(USERS|ORDERS|PRODUCTS|INVENTORY).*"
+    # 排除临时表、日志表、审计表
+    exclude_tables: "^(TEMP_|LOG_|AUDIT_|BACKUP_|OLD_).*"
+    # 排除敏感列
+    exclude_columns: "^(PASSWORD|SSN|CREDIT_CARD).*"
+
+  # 特殊数据类型处理
+  data_types:
+    export_blob: true
+    export_clob: true
+    auto_convert: true
+
+  # 调试和报告
+  debug:
+    enabled: true              # 启用调试模式
+    show_progress: true
+    show_report: true
+    estimate_cost: true        # 估算迁移成本
+
+# 自定义环境变量
+environment:
+  # Oracle相关
+  ORACLE_HOME: "/opt/oracle/instantclient_19_8"
+  TNS_ADMIN: "/opt/oracle/network/admin"
+  NLS_LANG: "AMERICAN_AMERICA.UTF8"
+  
+  # PostgreSQL相关
+  PGCLIENTENCODING: "UTF8"
+  PGTZ: "UTC"
+
+# 迁移策略配置
+strategy:
+  # 分阶段迁移
+  phases:
+    - name: "结构迁移"
+      types: ["TABLE", "VIEW", "SEQUENCE"]
+      parallel_jobs: 4
+    - name: "数据迁移"
+      types: ["COPY"]
+      parallel_jobs: 8
+    - name: "索引和约束"
+      types: ["INDEX"]
+      parallel_jobs: 6
+    - name: "程序对象"
+      types: ["FUNCTION", "PROCEDURE", "TRIGGER"]
+      parallel_jobs: 2
+    - name: "权限设置"
+      types: ["GRANT"]
+      parallel_jobs: 1
+
+  # 错误处理策略
+  error_handling:
+    continue_on_error: true    # 遇到错误继续执行
+    max_retries: 3             # 最大重试次数
+    retry_delay: 30            # 重试延迟（秒）
+
+  # 验证策略
+  validation:
+    enabled: true              # 启用验证
+    row_count_check: true      # 检查行数
+    data_sampling: true        # 数据抽样验证
+    sample_percentage: 1       # 抽样百分比
+
+# 监控和告警
+monitoring:
+  # 性能监控
+  performance:
+    track_memory: true         # 跟踪内存使用
+    track_cpu: true            # 跟踪CPU使用
+    track_io: true             # 跟踪IO使用
+
+  # 告警配置
+  alerts:
+    email_notifications: true
+    email_recipients:
+      - "dba@company.com"
+      - "migration-team@company.com"
+    
+    # 告警阈值
+    thresholds:
+      error_rate: 5            # 错误率超过5%时告警
+      duration: 14400          # 执行时间超过4小时时告警
+      memory_usage: 80         # 内存使用率超过80%时告警
+
+# 备份和恢复
+backup:
+  enabled: true                # 启用备份
+  backup_before_migration: true
+  backup_location: "/backup/migration"
+  retention_days: 30           # 备份保留天数
+  
+  # 增量备份
+  incremental: true
+  incremental_interval: 3600   # 增量备份间隔（秒）
+
+# 安全配置
+security:
+  # 数据脱敏
+  data_masking:
+    enabled: true
+    mask_patterns:
+      - column: "EMAIL"
+        pattern: "****@****.com"
+      - column: "PHONE"
+        pattern: "***-****-****"
+  
+  # 加密
+  encryption:
+    encrypt_output: false      # 是否加密输出文件
+    encryption_key: "${ENCRYPTION_KEY}"
+
+# 日志配置
+logging:
+  level: "DEBUG"
+  format: "json"               # JSON格式便于日志分析
+  output: "file"
+  file_path: "logs/migration.log"
+  max_size: 500                # 日志文件最大大小(MB)
+  max_age: 30                  # 日志保留天数
+  compress: true               # 压缩旧日志

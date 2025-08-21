@@ -1,0 +1,86 @@
+# Ora2Pg-Admin 基础配置示例
+# 适用于简单的Oracle到PostgreSQL迁移场景
+
+# 项目基本信息
+project:
+  name: "基础迁移项目"
+  version: "1.0.0"
+  description: "Oracle到PostgreSQL数据库迁移项目"
+  created: "2024-01-01T00:00:00Z"
+  updated: "2024-01-01T00:00:00Z"
+
+# Oracle 数据库配置
+oracle:
+  host: "oracle-server.example.com"
+  port: 1521
+  sid: "ORCL"                    # 使用SID连接
+  service: ""                    # 如果使用Service Name，请填写此项并清空sid
+  username: "hr"                 # Oracle用户名
+  password: "${ORACLE_PASSWORD}" # 使用环境变量存储密码
+  schema: "HR"                   # 指定要迁移的模式
+
+# PostgreSQL 数据库配置
+postgresql:
+  host: "postgres-server.example.com"
+  port: 5432
+  database: "hrdb"              # 目标数据库名
+  username: "postgres"          # PostgreSQL用户名
+  password: "${PG_PASSWORD}"    # 使用环境变量存储密码
+  schema: "public"              # 目标模式
+
+# 迁移配置
+migration:
+  # 要迁移的对象类型
+  types:
+    - "TABLE"      # 表结构
+    - "VIEW"       # 视图
+    - "SEQUENCE"   # 序列
+    - "INDEX"      # 索引
+    - "COPY"       # 数据复制
+
+  # 性能参数
+  parallel_jobs: 2             # 并行作业数（建议设置为CPU核心数的一半）
+  batch_size: 1000             # 批处理大小
+  output_dir: "output"         # 输出目录
+  log_level: "INFO"            # 日志级别
+
+# Oracle 客户端配置
+oracle_client:
+  home: ""                     # Oracle客户端路径（留空表示自动检测）
+  auto_detect: true            # 是否自动检测Oracle客户端
+
+# 高级配置选项（可选）
+advanced:
+  # 数据导出选项
+  data_export:
+    enabled: true              # 是否导出数据
+    use_copy: true             # 使用COPY而不是INSERT（性能更好）
+    commit_count: 10000        # 提交频率
+    disable_triggers: true     # 导入期间禁用触发器
+    disable_fkey: true         # 导入期间禁用外键约束
+
+  # 文件配置
+  file_options:
+    encoding: "UTF8"           # 输出文件编码
+    compress: false            # 是否压缩输出文件
+    max_size: 1000             # 单个文件最大大小(MB)
+
+  # 过滤选项
+  filters:
+    include_tables: ""         # 包含的表（正则表达式）
+    exclude_tables: "^(TEMP_|TEST_)" # 排除的表（正则表达式）
+    include_columns: ""        # 包含的列（正则表达式）
+    exclude_columns: ""        # 排除的列（正则表达式）
+
+  # 特殊数据类型处理
+  data_types:
+    export_blob: true          # 是否导出BLOB数据
+    export_clob: true          # 是否导出CLOB数据
+    auto_convert: true         # 自动数据类型转换
+
+  # 调试和报告
+  debug:
+    enabled: false             # 是否启用调试模式
+    show_progress: true        # 是否显示进度
+    show_report: true          # 是否生成统计报告
+    estimate_cost: false       # 是否估算迁移成本

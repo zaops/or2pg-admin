@@ -1,0 +1,72 @@
+# Go 编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+ora2pg-admin
+ora2pg-admin.exe
+
+# Go 测试文件
+*.test
+*.out
+*.prof
+
+# Go 依赖
+vendor/
+go.sum
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 配置文件（可能包含敏感信息）
+config.yaml
+config.yml
+*.conf
+!templates/*.conf.tmpl
+
+# 临时文件
+tmp/
+temp/
+.tmp/
+
+# 输出文件
+output/
+*.sql
+*.dump
+
+# 项目特定文件
+.ora2pg-admin/
+migration-*/
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 构建目录
+build/
+dist/
+bin/
+
+# 覆盖率报告
+coverage.txt
+coverage.html
+coverage.out

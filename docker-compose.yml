@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # Ora2Pg-Admin 主服务
+  ora2pg-admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME}
+        GIT_COMMIT: ${GIT_COMMIT}
+    container_name: ora2pg-admin
+    volumes:
+      - ./projects:/data/projects
+      - ./logs:/data/logs
+      - ./output:/data/output
+    environment:
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
+      - PG_PASSWORD=${PG_PASSWORD}
+      - ORA2PG_ADMIN_LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - ora2pg-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # PostgreSQL 测试数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: ora2pg-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-testdb}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - ora2pg-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Oracle 测试数据库（可选，需要Oracle镜像）
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: ora2pg-oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle}
+      APP_USER: ${ORACLE_USER:-testuser}
+      APP_USER_PASSWORD: ${ORACLE_USER_PASSWORD:-testpass}
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      - ./scripts/oracle:/docker-entrypoint-initdb.d
+    ports:
+      - "${ORACLE_PORT:-1521}:1521"
+    networks:
+      - ora2pg-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sqlplus -s ${ORACLE_USER:-testuser}/${ORACLE_USER_PASSWORD:-testpass}@localhost:1521/XE <<< 'SELECT 1 FROM DUAL;' | grep -q '^1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    profiles:
+      - oracle
+
+  # 监控服务（可选）
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ora2pg-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ora2pg-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # 日志收集（可选）
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ora2pg-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    networks:
+      - ora2pg-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # Redis 缓存（可选，用于会话管理）
+  redis:
+    image: redis:7-alpine
+    container_name: ora2pg-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - ora2pg-network
+    restart: unless-stopped
+    profiles:
+      - cache
+
+networks:
+  ora2pg-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  oracle_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  redis_data:
+    driver: local

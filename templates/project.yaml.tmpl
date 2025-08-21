@@ -1,0 +1,163 @@
+# Ora2Pg 项目配置文件
+# 由 ora2pg-admin 自动生成
+
+# 项目基本信息
+project:
+  name: "{{.ProjectName}}"
+  version: "1.0.0"
+  description: "Oracle到PostgreSQL数据库迁移项目"
+  created: "{{.Timestamp}}"
+  updated: "{{.Timestamp}}"
+
+# Oracle 数据库配置
+oracle:
+  host: "localhost"
+  port: 1521
+  sid: "ORCL"
+  service: ""  # 如果使用 Service Name 而不是 SID，请填写此项
+  username: "system"
+  password: "${ORACLE_PASSWORD}"  # 支持环境变量
+  schema: ""  # 指定要迁移的模式，留空表示用户默认模式
+
+# PostgreSQL 数据库配置
+postgresql:
+  host: "localhost"
+  port: 5432
+  database: "postgres"
+  username: "postgres"
+  password: "${PG_PASSWORD}"  # 支持环境变量
+  schema: "public"  # 目标模式
+
+# 迁移配置
+migration:
+  # 要迁移的对象类型
+  types:
+    - "TABLE"      # 表结构
+    - "VIEW"       # 视图
+    - "SEQUENCE"   # 序列
+    - "INDEX"      # 索引
+    # - "TRIGGER"    # 触发器
+    # - "FUNCTION"   # 函数
+    # - "PROCEDURE"  # 存储过程
+    # - "PACKAGE"    # 包
+    # - "TYPE"       # 自定义类型
+    # - "GRANT"      # 权限
+    # - "TABLESPACE" # 表空间
+    # - "PARTITION"  # 分区
+    # - "COPY"       # 数据复制
+    # - "INSERT"     # 数据插入
+    # - "FDW"        # 外部数据包装器
+    # - "QUERY"      # 查询
+
+  # 并行作业数（建议设置为CPU核心数）
+  parallel_jobs: 4
+
+  # 批处理大小（每次处理的记录数）
+  batch_size: 1000
+
+  # 输出目录
+  output_dir: "output"
+
+  # 日志级别 (DEBUG, INFO, WARN, ERROR)
+  log_level: "INFO"
+
+# Oracle 客户端配置
+oracle_client:
+  # Oracle 客户端安装路径（如果不使用自动检测）
+  home: ""
+  
+  # 是否自动检测 Oracle 客户端
+  auto_detect: true
+
+# 高级配置选项（可选）
+advanced:
+  # 数据导出选项
+  data_export:
+    # 是否导出数据
+    enabled: true
+    
+    # 使用 COPY 而不是 INSERT（性能更好）
+    use_copy: true
+    
+    # 提交频率（每处理多少行提交一次）
+    commit_count: 10000
+    
+    # 是否在导入期间禁用触发器
+    disable_triggers: true
+    
+    # 是否在导入期间禁用外键约束
+    disable_fkey: true
+
+  # 文件配置
+  file_options:
+    # 输出文件编码
+    encoding: "UTF8"
+    
+    # 是否压缩输出文件
+    compress: false
+    
+    # 单个文件最大大小 (MB)
+    max_size: 1000
+
+  # 过滤选项
+  filters:
+    # 包含的表（正则表达式，留空表示包含所有）
+    include_tables: ""
+    
+    # 排除的表（正则表达式）
+    exclude_tables: ""
+    
+    # 包含的列（正则表达式，留空表示包含所有）
+    include_columns: ""
+    
+    # 排除的列（正则表达式）
+    exclude_columns: ""
+
+  # 特殊数据类型处理
+  data_types:
+    # 是否导出 BLOB 数据
+    export_blob: true
+    
+    # 是否导出 CLOB 数据
+    export_clob: true
+    
+    # 自动数据类型转换
+    auto_convert: true
+
+  # 调试和报告
+  debug:
+    # 是否启用调试模式
+    enabled: false
+    
+    # 是否显示进度
+    show_progress: true
+    
+    # 是否生成统计报告
+    show_report: true
+    
+    # 是否估算迁移成本
+    estimate_cost: false
+
+# 环境变量说明
+# 
+# 为了安全起见，建议将敏感信息（如数据库密码）设置为环境变量：
+# 
+# Windows:
+#   set ORACLE_PASSWORD=your_oracle_password
+#   set PG_PASSWORD=your_postgresql_password
+# 
+# Linux/macOS:
+#   export ORACLE_PASSWORD=your_oracle_password
+#   export PG_PASSWORD=your_postgresql_password
+# 
+# 或者创建 .env 文件：
+#   ORACLE_PASSWORD=your_oracle_password
+#   PG_PASSWORD=your_postgresql_password
+
+# 使用说明
+#
+# 1. 根据实际情况修改数据库连接配置
+# 2. 选择需要迁移的对象类型
+# 3. 调整性能参数（并行作业数、批处理大小等）
+# 4. 设置环境变量或直接填写密码（不推荐）
+# 5. 运行迁移命令：ora2pg-admin 迁移 全部
