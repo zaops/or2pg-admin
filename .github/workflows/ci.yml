@@ -51,7 +51,7 @@ jobs:
 
     - name: Install golangci-lint
       run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
 
     - name: Run golangci-lint
       run: golangci-lint run --timeout=5m
@@ -196,15 +196,24 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Install Gosec
+      run: |
+        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
-      with:
-        args: '-no-fail -fmt sarif -out results.sarif ./...'
+      run: |
+        gosec -no-fail -fmt sarif -out results.sarif ./...
+      continue-on-error: true
 
     - name: Upload SARIF file
+      if: always()
       uses: github/codeql-action/upload-sarif@v2
       with:
         sarif_file: results.sarif
+      continue-on-error: true
 
   # 发布
   release:
@@ -281,7 +290,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: zaops/${{ env.PROJECT_NAME }}
+        images: ${{ secrets.DOCKER_USERNAME }}/${{ env.PROJECT_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr

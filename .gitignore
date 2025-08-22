@@ -14,7 +14,6 @@ ora2pg-admin.exe
 
 # Go 依赖
 vendor/
-go.sum
 
 # IDE 文件
 .vscode/
