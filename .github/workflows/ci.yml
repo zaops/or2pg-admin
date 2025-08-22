@@ -68,7 +68,7 @@ jobs:
         ls -lh ${{ env.PROJECT_NAME }}-linux-amd64 | awk '{print "- **Size**: " $5}' >> build-info.txt
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PROJECT_NAME }}-linux-amd64
         path: |
