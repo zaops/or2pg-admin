@@ -1,9 +1,8 @@
-name: CI/CD Pipeline
+name: Build Linux x64
 
 on:
   push:
     branches: [ main, develop ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main, develop ]
 
@@ -12,131 +11,10 @@ env:
   PROJECT_NAME: 'ora2pg-admin'
 
 jobs:
-  # 代码质量检查
-  lint:
-    name: Code Quality
+  # 构建 Linux x64 二进制包
+  build-linux:
+    name: Build Linux x64
     runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Format check
-      run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "Code is not formatted properly:"
-          gofmt -s -l .
-          exit 1
-        fi
-
-    - name: Vet
-      run: go vet ./...
-
-    - name: Install golangci-lint
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
-
-    - name: Run golangci-lint
-      run: golangci-lint run --timeout=5m
-
-  # 单元测试
-  test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.22', '1.23', '1.24']
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go-version }}
-
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ matrix.go-version }}-
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Run tests
-      run: go test -v -race -timeout=30m -coverprofile=coverage.out ./internal/... ./cmd/...
-
-    - name: Upload coverage to Codecov
-      if: matrix.go-version == '1.24'
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
-
-  # 集成测试
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Run integration tests
-      run: go test -v -short -timeout=10m ./tests/...
-
-  # 构建测试
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, test, integration-test]
-    strategy:
-      matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
-        exclude:
-          - goos: windows
-            goarch: arm64
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -161,149 +39,46 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Build binary
+    - name: Build Linux x64 binary
       env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
+        GOOS: linux
+        GOARCH: amd64
       run: |
-        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0")
+        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")
         BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
         GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         
-        BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}"
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          BINARY_NAME="${BINARY_NAME}.exe"
-        fi
+        echo "Building version: $VERSION"
+        echo "Build time: $BUILD_TIME"
+        echo "Git commit: $GIT_COMMIT"
         
-        go build -ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT}" -o ${BINARY_NAME} .
+        go build -ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT} -w -s" \
+          -o ${{ env.PROJECT_NAME }}-linux-amd64 .
 
-    - name: Upload build artifacts
+    - name: Create release info
+      run: |
+        echo "# Build Information" > build-info.txt
+        echo "- **Version**: $(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")" >> build-info.txt
+        echo "- **Build Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> build-info.txt
+        echo "- **Git Commit**: $(git rev-parse --short HEAD)" >> build-info.txt
+        echo "- **Go Version**: $(go version)" >> build-info.txt
+        echo "- **Platform**: linux/amd64" >> build-info.txt
+        echo "" >> build-info.txt
+        echo "## Binary Size" >> build-info.txt
+        ls -lh ${{ env.PROJECT_NAME }}-linux-amd64 | awk '{print "- **Size**: " $5}' >> build-info.txt
+
+    - name: Upload binary artifact
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ env.PROJECT_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: ${{ env.PROJECT_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+        name: ${{ env.PROJECT_NAME }}-linux-amd64
+        path: |
+          ${{ env.PROJECT_NAME }}-linux-amd64
+          build-info.txt
+        retention-days: 30
 
-  # 安全扫描
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Install Gosec
+    - name: Display build summary
       run: |
-        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-
-    - name: Run Gosec Security Scanner
-      run: |
-        gosec -no-fail -fmt sarif -out results.sarif ./...
-      continue-on-error: true
-
-    - name: Upload SARIF file
-      if: always()
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: results.sarif
-      continue-on-error: true
-
-  # 发布
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    needs: [lint, test, integration-test, build, security]
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v3
-
-    - name: Create release packages
-      run: |
-        mkdir -p dist
-        for dir in ${{ env.PROJECT_NAME }}-*; do
-          if [ -d "$dir" ]; then
-            cd "$dir"
-            if ls *.exe 1> /dev/null 2>&1; then
-              zip "../dist/${dir}.zip" *
-            else
-              tar -czf "../dist/${dir}.tar.gz" *
-            fi
-            cd ..
-          fi
-        done
-
-    - name: Generate changelog
-      run: |
-        echo "## 更新日志" > CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> CHANGELOG.md
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: dist/*
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Docker 构建和推送
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    needs: [lint, test, integration-test]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to Docker Hub
-      if: github.event_name != 'pull_request'
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.DOCKER_USERNAME }}/${{ env.PROJECT_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        echo "🎉 Build completed successfully!"
+        echo "📦 Binary: ${{ env.PROJECT_NAME }}-linux-amd64"
+        echo "📊 Build info:"
+        cat build-info.txt

@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/Release-v1.0.0-orange.svg)](https://github.com/zaops/ora2pg-admin/releases)
-[![Build Status](https://github.com/zaops/ora2pg-admin/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/zaops/ora2pg-admin/actions)
+[![Build Status](https://github.com/zaops/ora2pg-admin/workflows/Build%20Linux%20x64/badge.svg)](https://github.com/zaops/ora2pg-admin/actions)
 [![codecov](https://codecov.io/gh/zaops/ora2pg-admin/branch/main/graph/badge.svg)](https://codecov.io/gh/zaops/ora2pg-admin)
 
 一个基于 Go 语言开发的中文命令行工具，旨在简化 Oracle 到 PostgreSQL 数据库迁移的运维操作。
