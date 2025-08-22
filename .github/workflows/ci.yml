@@ -26,6 +26,9 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Clear existing Go module cache (avoid tar File exists warnings)
+      run: rm -rf ~/go/pkg/mod || true
+
     - name: Cache Go modules
       # Use GNU tar to avoid "Cannot open: File exists" warnings
       uses: actions/cache@v4
