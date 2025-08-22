@@ -27,7 +27,8 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      # Use GNU tar to avoid "Cannot open: File exists" warnings
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
